@@ -122,7 +122,28 @@ module Sass
 
       def stylesheet
         node = node(Sass::Tree::RootNode.new(@scanner.string), source_position)
+
         block_contents(node, :stylesheet) {s(node)}
+      rescue Sass::SyntaxError => e
+        line_no = e.sass_line - 3
+        line_counter = 0
+
+        lines = @template.split("\n")
+        re = /\A\/\/\*\*FILENAME:([^\*])+\*\*\z/
+
+        puts "herehererererererere", line_no
+        while line = lines[line_no] do
+          line_counter += 1
+          line_no -= 1
+
+          if re.match(line)
+            filename = line[12..-3]
+            puts "Filename: #{filename}, line: #{line_counter}"
+            break
+          end
+        end
+
+        raise
       end
 
       def s(node)
