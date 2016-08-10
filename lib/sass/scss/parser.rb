@@ -125,25 +125,7 @@ module Sass
 
         block_contents(node, :stylesheet) {s(node)}
       rescue Sass::SyntaxError => e
-        line_no = e.sass_line - 3
-        line_counter = 0
-
-        lines = @template.split("\n")
-        re = /\A\/\/\*\*FILENAME:([^\*])+\*\*\z/
-
-        puts "herehererererererere", line_no
-        while line = lines[line_no] do
-          line_counter += 1
-          line_no -= 1
-
-          if re.match(line)
-            filename = line[12..-3]
-            puts "Filename: #{filename}, line: #{line_counter}"
-            break
-          end
-        end
-
-        raise
+        raise add_extra_info_to_backtrace(e)
       end
 
       def s(node)
@@ -153,6 +135,36 @@ module Sass
           c = nil
         end
         true
+      end
+
+      # Adds the filename and line number of syntax error to backtrace.
+      # In case of being used with sprockets and in precompile time, it's
+      # impossible to trace the syntax error and find the exact location since
+      # sprockets create a big stylesheet file from a manifest file and pass
+      # that file to sass.
+      # Using this method and ofcourse a patch on sprockets which provides more
+      # info about the manifest in format of comments, the exact location of
+      # syntax error adds to the backtrace.
+      #
+      # @param [SyntaxError]
+      # @return [SyntaxError]
+      def add_extra_info_to_backtrace(e)
+        line_no      = e.sass_line - 3
+        line_counter = 0
+        lines        = @template.split("\n")
+        re           = /\A\/\/\*\*FILENAME:([^\*])+\*\*\z/
+
+        lines[0..line_no].reverse.each do |line|
+          line_counter += 1
+          line_no      -= 1
+
+          if re.match(line)
+            filename = line[13..-3]
+            e.sass_backtrace = [{ filename: filename, line: line_counter }]
+            break
+          end
+        end
+        e
       end
 
       def ss
